@@ -1,0 +1,5 @@
+Added namespace definition: self.ns = {'bs': 'http://www.battlescribe.net/schema/catalogueSchema'}
+All XPath queries now use bs: prefix for elements
+Added safety checks for integer parsing
+
+Try this version!
