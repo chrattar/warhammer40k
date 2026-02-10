@@ -1,6 +1,7 @@
 import sqlite3
+from pathlib import Path
 
-DB_NAME = "wh40k.db"
+DB_NAME = str(Path(__file__).parent / "wh40k.db")
 
 
 def get_weapon(weapon_id):
@@ -16,10 +17,8 @@ def get_weapon(weapon_id):
     )
     row = cur.fetchone()
     conn.close()
-
     if not row:
         raise ValueError("Weapon not found")
-
     return {
         "attacks": row[0],
         "skill": row[1],
@@ -29,7 +28,25 @@ def get_weapon(weapon_id):
     }
 
 
-def get_unit_defense(unit_id):
+def list_units_by_faction(faction):
+    conn = sqlite3.connect(DB_NAME)
+    cur = conn.cursor()
+    cur.execute(
+        """
+        SELECT id, unit_id, name, profile_name, toughness, save, wounds
+        FROM units
+        WHERE faction = ?
+          AND legends != 'Legends-NotActive'
+        ORDER BY name, profile_name
+    """,
+        (faction,),
+    )
+    rows = cur.fetchall()
+    conn.close()
+    return rows
+
+
+def get_unit_defense(unit_pk_id):
     conn = sqlite3.connect(DB_NAME)
     cur = conn.cursor()
     cur.execute(
@@ -38,40 +55,16 @@ def get_unit_defense(unit_id):
         FROM units
         WHERE id = ?
     """,
-        (unit_id,),
+        (unit_pk_id,),
     )
     row = cur.fetchone()
     conn.close()
-
     if not row:
         raise ValueError("Unit not found")
-
-    return {
-        "toughness": row[0],
-        "save": row[1],
-        "wounds": row[2],
-    }
+    return {"toughness": row[0], "save": row[1], "wounds": row[2]}
 
 
-def list_units(limit=10):
-    conn = sqlite3.connect(DB_NAME)
-    cur = conn.cursor()
-    cur.execute(
-        """
-        SELECT id, name, faction
-        FROM units
-        WHERE legends = 'TournamentPlay'
-        ORDER BY faction, name
-        LIMIT ?
-    """,
-        (limit,),
-    )
-    rows = cur.fetchall()
-    conn.close()
-    return rows
-
-
-def list_weapons_for_unit(unit_id):
+def list_weapons_for_unit(raw_unit_id):
     conn = sqlite3.connect(DB_NAME)
     cur = conn.cursor()
     cur.execute(
@@ -80,23 +73,10 @@ def list_weapons_for_unit(unit_id):
         FROM weapons w
         JOIN unit_weapons uw ON uw.weapon_id = w.id
         WHERE uw.unit_id = ?
+        ORDER BY w.name
     """,
-        (unit_id,),
+        (raw_unit_id,),
     )
-    rows = cur.fetchall()
-    conn.close()
-    return rows
-
-
-def list_units_with_stats():
-    conn = sqlite3.connect(DB_NAME)
-    cur = conn.cursor()
-    cur.execute("""
-        SELECT id, name, faction, toughness, save, wounds
-        FROM units
-        WHERE legends = 'TournamentPlay'
-        ORDER BY faction, name
-    """)
     rows = cur.fetchall()
     conn.close()
     return rows
@@ -108,27 +88,9 @@ def list_factions():
     cur.execute("""
         SELECT DISTINCT faction
         FROM units
-        WHERE legends = 'TournamentPlay'
+        WHERE legends != 'Legends-NotActive'
         ORDER BY faction
     """)
     rows = [r[0] for r in cur.fetchall()]
-    conn.close()
-    return rows
-
-
-def list_units_by_faction(faction):
-    conn = sqlite3.connect(DB_NAME)
-    cur = conn.cursor()
-    cur.execute(
-        """
-        SELECT id, name, toughness, save, wounds
-        FROM units
-        WHERE faction = ?
-            AND legends = 'TournamentPlay'
-        ORDER BY name
-    """,
-        (faction,),
-    )
-    rows = cur.fetchall()
     conn.close()
     return rows

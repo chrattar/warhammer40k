@@ -57,7 +57,9 @@ class CombatGUI:
     def update_attacker_units(self, _):
         faction = self.att_faction.get()
         self.att_units = list_units_by_faction(faction)
-        self.att_unit["values"] = [u[1] for u in self.att_units]
+        self.att_unit["values"] = [
+            f"{u[2]} ({u[3]})  T{u[4]} Sv{u[5]} W{u[6]}" for u in self.att_units
+        ]
         self.att_unit.set("")
         self.weapon_box.set("")
         self.weapon_box["values"] = []
@@ -65,13 +67,15 @@ class CombatGUI:
     def update_defender_units(self, _):
         faction = self.def_faction.get()
         self.def_units = list_units_by_faction(faction)
-        self.def_unit["values"] = [u[1] for u in self.def_units]
+        self.def_unit["values"] = [
+            f"{u[2]} ({u[3]})  T{u[4]} Sv{u[5]} W{u[6]}" for u in self.def_units
+        ]
         self.def_unit.set("")
 
     def update_weapons(self, _):
         idx = self.att_unit.current()
-        unit_id = self.att_units[idx][0]
-        self.weapons = list_weapons_for_unit(unit_id)
+        raw_unit_id = self.att_units[idx][1]  # <-- raw BSD unit_id
+        self.weapons = list_weapons_for_unit(raw_unit_id)
         self.weapon_box["values"] = [w[1] for w in self.weapons]
         self.weapon_box.set("")
 
@@ -95,8 +99,8 @@ class CombatGUI:
         result = resolve_attack(weapon, defense)
 
         self.output.delete("1.0", tk.END)
-        self.output.insert(tk.END, f"Attacker: {attacker[1]}\n")
-        self.output.insert(tk.END, f"Defender: {defender[1]}\n\n")
+        self.output.insert(tk.END, f"Attacker: {attacker[2]}\n")
+        self.output.insert(tk.END, f"Defender: {defender[2]}\n\n")
         for k, v in result.items():
             self.output.insert(tk.END, f"{k}: {v}\n")
 
