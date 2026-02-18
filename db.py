@@ -64,18 +64,19 @@ def get_unit_defense(unit_pk_id):
     return {"toughness": row[0], "save": row[1], "wounds": row[2]}
 
 
-def list_weapons_for_unit(raw_unit_id):
+def list_weapons_for_unit(unit_pk_id):
     conn = sqlite3.connect(DB_NAME)
     cur = conn.cursor()
     cur.execute(
         """
         SELECT w.id, w.name
         FROM weapons w
-        JOIN unit_weapons uw ON uw.weapon_id = w.id
+        JOIN unit_weapons uw
+            ON uw.weapon_id = w.id
         WHERE uw.unit_id = ?
         ORDER BY w.name
     """,
-        (raw_unit_id,),
+        (unit_pk_id,),
     )
     rows = cur.fetchall()
     conn.close()
@@ -85,12 +86,14 @@ def list_weapons_for_unit(raw_unit_id):
 def list_factions():
     conn = sqlite3.connect(DB_NAME)
     cur = conn.cursor()
-    cur.execute("""
+    cur.execute(
+        """
         SELECT DISTINCT faction
         FROM units
-        WHERE legends != 'Legends-NotActive'
+        WHERE faction IS NOT NULL AND faction != ''
         ORDER BY faction
-    """)
-    rows = [r[0] for r in cur.fetchall()]
+        """
+    )
+    rows = cur.fetchall()
     conn.close()
-    return rows
+    return [r[0] for r in rows]

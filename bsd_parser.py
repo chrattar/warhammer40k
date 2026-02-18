@@ -168,7 +168,10 @@ def parse_battlescribe_catalogue(xml_file_path, selection_registry):
         return element.get(attrib_name, "")
 
     # Process all selectionEntry elements (units)
-    for entry in root.findall(f".//{namespace}selectionEntry[@type='unit']"):
+    for entry in root.findall(f".//{namespace}selectionEntry"):
+        entry_type = entry.get("type")
+        if entry_type not in ["unit", "model"]:
+            continue
         unit_id = get_element_attrib(entry, "id")
         unit_name = clean_special_characters(get_element_attrib(entry, "name"))
 
@@ -215,12 +218,23 @@ def parse_battlescribe_catalogue(xml_file_path, selection_registry):
 
         # Extract weapons from this unit
         extract_weapons_from_unit(
-            entry, unit_id, faction_name, weapons_data, unit_weapons_data, namespace
+            entry,
+            unit_id,
+            faction_name,
+            weapons_data,
+            unit_weapons_data,
+            namespace,
+            selection_registry,
         )
 
         # Extract abilities from this unit
         extract_abilities_from_unit(
-            entry, unit_id, faction_name, abilities_data, unit_abilities_data, namespace
+            entry,
+            unit_id,
+            faction_name,
+            abilities_data,
+            unit_abilities_data,
+            namespace,
         )
 
         for entry_link in root.findall(
@@ -289,6 +303,7 @@ def parse_battlescribe_catalogue(xml_file_path, selection_registry):
                 weapons_data,
                 unit_weapons_data,
                 namespace,
+                selection_registry,
             )
 
             extract_abilities_from_unit(
@@ -325,38 +340,29 @@ def parse_battlescribe_catalogue(xml_file_path, selection_registry):
 
 
 def extract_weapons_from_unit(
-    unit_entry, unit_id, faction_name, weapons_data, unit_weapons_data, namespace
+    unit_entry,
+    unit_id,
+    faction_name,
+    weapons_data,
+    unit_weapons_data,
+    namespace,
+    selection_registry,
 ):
-    """Extract all weapons from a unit entry"""
+    """Extract all weapons from a unit entry (direct + linked)"""
 
-    # Find all weapon profiles (both ranged and melee)
-    ranged_weapons = unit_entry.findall(
-        f".//{namespace}profile[@typeName='Ranged Weapons']"
-    )
-    melee_weapons = unit_entry.findall(
-        f".//{namespace}profile[@typeName='Melee Weapons']"
-    )
-
-    all_weapons = [(w, "Ranged") for w in ranged_weapons] + [
-        (w, "Melee") for w in melee_weapons
-    ]
-
-    for weapon_profile, weapon_type in all_weapons:
+    def process_weapon_profile(weapon_profile, weapon_type):
         weapon_name = clean_special_characters(weapon_profile.get("name", ""))
         weapon_id = weapon_profile.get("id", str(uuid.uuid4()))
 
-        # Extract weapon characteristics
         characteristics = {}
         for char in weapon_profile.findall(f".//{namespace}characteristic"):
             char_name = char.get("name", "")
             char_value = char.text if char.text else ""
             characteristics[char_name] = char_value
 
-        # Split keywords into separate columns
         keywords_raw = characteristics.get("Keywords", "")
         keyword_columns = split_keywords(keywords_raw, 5)
 
-        # Create weapon data entry with faction as first column
         weapon_data = {
             "faction": faction_name,
             "weapon_id": weapon_id,
@@ -379,7 +385,6 @@ def extract_weapons_from_unit(
 
         weapons_data.append(weapon_data)
 
-        # Create unit-weapon relationship with faction
         unit_weapons_data.append(
             {
                 "faction": faction_name,
@@ -388,6 +393,53 @@ def extract_weapons_from_unit(
                 "weapon_name": weapon_name,
             }
         )
+
+    # --- Direct weapon profiles ---
+    ranged_weapons = unit_entry.findall(
+        f".//{namespace}profile[@typeName='Ranged Weapons']"
+    )
+    melee_weapons = unit_entry.findall(
+        f".//{namespace}profile[@typeName='Melee Weapons']"
+    )
+
+    for w in ranged_weapons:
+        process_weapon_profile(w, "Ranged")
+    for w in melee_weapons:
+        process_weapon_profile(w, "Melee")
+
+    # --- Follow entryLinks for shared weapons ---
+    for entry_link in unit_entry.findall(
+        f".//{namespace}entryLink[@type='selectionEntry']"
+    ):
+        target_id = entry_link.get("targetId")
+        if not target_id:
+            continue
+
+        linked_entry = selection_registry.get(target_id)
+        if linked_entry is None:
+            continue
+
+        ranged_weapons = linked_entry.findall(
+            f".//{namespace}profile[@typeName='Ranged Weapons']"
+        )
+        melee_weapons = linked_entry.findall(
+            f".//{namespace}profile[@typeName='Melee Weapons']"
+        )
+
+        for w in ranged_weapons:
+            process_weapon_profile(w, "Ranged")
+        for w in melee_weapons:
+            process_weapon_profile(w, "Melee")
+
+            # --- Recurse into child selectionEntries ---
+    for child in unit_entry.findall(f".//{namespace}selectionEntry"):
+        ranged = child.findall(f".//{namespace}profile[@typeName='Ranged Weapons']")
+        melee = child.findall(f".//{namespace}profile[@typeName='Melee Weapons']")
+
+        for w in ranged:
+            process_weapon_profile(w, "Ranged")
+        for w in melee:
+            process_weapon_profile(w, "Melee")
 
 
 def extract_abilities_from_unit(

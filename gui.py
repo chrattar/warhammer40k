@@ -57,9 +57,13 @@ class CombatGUI:
     def update_attacker_units(self, _):
         faction = self.att_faction.get()
         self.att_units = list_units_by_faction(faction)
+
+        print("Sample attacker tuple:", self.att_units[0] if self.att_units else None)
+
         self.att_unit["values"] = [
             f"{u[2]} ({u[3]})  T{u[4]} Sv{u[5]} W{u[6]}" for u in self.att_units
         ]
+
         self.att_unit.set("")
         self.weapon_box.set("")
         self.weapon_box["values"] = []
@@ -67,15 +71,22 @@ class CombatGUI:
     def update_defender_units(self, _):
         faction = self.def_faction.get()
         self.def_units = list_units_by_faction(faction)
+
+        print("Sample defender tuple:", self.def_units[0] if self.def_units else None)
+
         self.def_unit["values"] = [
             f"{u[2]} ({u[3]})  T{u[4]} Sv{u[5]} W{u[6]}" for u in self.def_units
         ]
+
         self.def_unit.set("")
 
     def update_weapons(self, _):
         idx = self.att_unit.current()
-        raw_unit_id = self.att_units[idx][1]  # <-- raw BSD unit_id
-        self.weapons = list_weapons_for_unit(raw_unit_id)
+        unit_pk_id = self.att_units[idx][0]
+        self.weapons = list_weapons_for_unit(unit_pk_id)
+
+        print("Weapons for unit:", unit_pk_id, self.weapons[:3])
+
         self.weapon_box["values"] = [w[1] for w in self.weapons]
         self.weapon_box.set("")
 
