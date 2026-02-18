@@ -49,7 +49,7 @@ class CombatGUI:
             row=6, column=0, columnspan=2, pady=10
         )
 
-        self.output = tk.Text(root, height=10, width=120)
+        self.output = tk.Text(root, height=10, width=200)
         self.output.grid(row=7, column=0, columnspan=2)
 
     # Update all units
