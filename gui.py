@@ -36,7 +36,7 @@ class CombatGUI:
         self.att_unit.bind("<<ComboboxSelected>>", self.update_weapons)
 
         ttk.Label(root, text="Defender Unit").grid(row=2, column=1)
-        self.def_unit = ttk.Combobox(root, state="readonly", width=40)
+        self.def_unit = ttk.Combobox(root, state="readonly", width=70)
         self.def_unit.grid(row=3, column=1)
 
         # --- WEAPONS ---
@@ -49,7 +49,7 @@ class CombatGUI:
             row=6, column=0, columnspan=2, pady=10
         )
 
-        self.output = tk.Text(root, height=10, width=80)
+        self.output = tk.Text(root, height=10, width=120)
         self.output.grid(row=7, column=0, columnspan=2)
 
     # Update all units
