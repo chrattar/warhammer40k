@@ -132,7 +132,7 @@ def check_legends_status(unit_entry, namespace):
     return "TournamentPlay"
 
 
-def parse_battlescribe_catalogue(xml_file_path):
+def parse_battlescribe_catalogue(xml_file_path, selection_registry):
     """Parse BattleScribe catalogue XML and extract data into normalized tables"""
 
     # Extract faction name from filename
@@ -223,7 +223,92 @@ def parse_battlescribe_catalogue(xml_file_path):
             entry, unit_id, faction_name, abilities_data, unit_abilities_data, namespace
         )
 
+        for entry_link in root.findall(
+            f".//{namespace}entryLink[@type='selectionEntry']"
+        ):
+            target_id = entry_link.get("targetId")
+
+            if not target_id:
+                continue
+
+            if target_id not in selection_registry:
+                continue
+
+            linked_entry = selection_registry[target_id]
+
+            # Only process if the linked selectionEntry is a unit
+            if linked_entry.get("type") not in ["unit", "model"]:
+                continue
+
+            unit_id = linked_entry.get("id")
+            unit_name = clean_special_characters(linked_entry.get("name", ""))
+
+            legends_status = check_legends_status(linked_entry, namespace)
+
+            profiles = linked_entry.findall(f".//{namespace}profile[@typeName='Unit']")
+
+            for profile in profiles:
+                profile_name = clean_special_characters(profile.get("name", ""))
+
+                characteristics = {}
+                for char in profile.findall(f".//{namespace}characteristic"):
+                    char_name = char.get("name", "")
+                    char_value = char.text if char.text else ""
+                    characteristics[char_name] = char_value
+
+                unit_data = {
+                    "faction": faction_name,
+                    "unit_id": unit_id,
+                    "unit_name": unit_name,
+                    "profile_name": profile_name,
+                    "legends": legends_status,
+                    "movement": convert_to_number(characteristics.get("M", "")),
+                    "toughness": convert_to_number(characteristics.get("T", "")),
+                    "save": convert_to_number(characteristics.get("SV", "")),
+                    "wounds": convert_to_number(characteristics.get("W", "")),
+                    "leadership": convert_to_number(characteristics.get("LD", "")),
+                    "objective_control": convert_to_number(
+                        characteristics.get("OC", "")
+                    ),
+                    "points_cost": 0,
+                }
+
+                costs = linked_entry.findall(f".//{namespace}cost[@name='pts']")
+                if costs:
+                    unit_data["points_cost"] = convert_to_number(
+                        costs[0].get("value", "")
+                    )
+
+                units_data.append(unit_data)
+
+            # Extract linked weapons & abilities
+            extract_weapons_from_unit(
+                linked_entry,
+                unit_id,
+                faction_name,
+                weapons_data,
+                unit_weapons_data,
+                namespace,
+            )
+
+            extract_abilities_from_unit(
+                linked_entry,
+                unit_id,
+                faction_name,
+                abilities_data,
+                unit_abilities_data,
+                namespace,
+            )
     # Create DataFrames
+    # Deduplicate units before DataFrame creation
+    unique_units = {}
+    for u in units_data:
+        key = (u["faction"], u["unit_id"], u["profile_name"])
+        unique_units[key] = u  # last one wins
+
+    units_data = list(unique_units.values())
+    #
+    #
     units_df = pd.DataFrame(units_data)
     weapons_df = pd.DataFrame(weapons_data)
     abilities_df = pd.DataFrame(abilities_data)
@@ -419,11 +504,35 @@ def remove_duplicates_from_tables(dataframes_dict):
     return cleaned_data
 
 
+def build_selection_registry(cat_files):
+    """Build global dictionary, selectionEntry_id --> XML CODE"""
+    registry = {}
+
+    for file_path in cat_files:
+        try:
+            tree = ET.parse(file_path)
+            root = tree.getroot()
+
+            namespace = ""
+            if root.tag.startswith("{"):
+                namespace = root.tag.split("}")[0] + "}"
+
+            for entry in root.findall(f".//{namespace}selectionEntry"):
+                entry_id = entry.get("id")
+                if entry_id:
+                    registry[entry_id] = entry
+        except Exception as e:
+            print(f"Registry Load error in {file_path}: {e}")
+    return registry
+
+
 def process_all_factions(repository_path):
-    """Process all .cat files in the repository"""
+    # procvess cat files in repo
 
     # Find all .cat files
-    cat_files = glob.glob(os.path.join(repository_path, "*.cat"))
+    cat_files = glob.glob(os.path.join(repository_path, "*.cat"), recursive=True)
+    selection_registry = build_selection_registry(cat_files)
+    print(f"Slection Registry Built: {len(selection_registry)} selectionEntries")
 
     # Initialize combined data structures
     all_units = []
@@ -442,7 +551,7 @@ def process_all_factions(repository_path):
 
         try:
             # Parse the catalogue
-            data_tables = parse_battlescribe_catalogue(cat_file)
+            data_tables = parse_battlescribe_catalogue(cat_file, selection_registry)
 
             if data_tables:
                 # Combine data
