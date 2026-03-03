@@ -1,5 +1,6 @@
-﻿.venv/
-wh40k.db
-__pycache__/
+﻿__pycache__/
 *.pyc
+wh40k.db
+.venv/
+venv/
 wh40k-10e/

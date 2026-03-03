@@ -486,7 +486,7 @@ def extract_abilities_from_unit(
 
 
 def remove_duplicates_from_tables(dataframes_dict):
-    """Remove duplicates from all tables based on appropriate columns"""
+    # Remove duplciations from columsn
 
     print("\n=== REMOVING DUPLICATES ===")
 
@@ -530,13 +530,13 @@ def remove_duplicates_from_tables(dataframes_dict):
         if not df.empty and table_name in duplicate_criteria:
             original_count = len(df)
 
-            # Get columns that exist in the dataframe
+            # Columns exist in DF
             available_columns = [
                 col for col in duplicate_criteria[table_name] if col in df.columns
             ]
 
             if available_columns:
-                # Remove duplicates based on available columns
+                # Remove duplicates
                 df_cleaned = df.drop_duplicates(subset=available_columns, keep="first")
                 duplicates_removed = original_count - len(df_cleaned)
 
