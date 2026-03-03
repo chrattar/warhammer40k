@@ -7,6 +7,8 @@ class CombatContext:
         self.ballistic_skill = ballistic_skill
         self.hit_rolls = []
         self.hits = []
+        self.rules = []
+        self.auto_wounds = 0
 
         self.log = []
 

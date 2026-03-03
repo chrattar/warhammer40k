@@ -36,7 +36,9 @@ class HitPhase:
         criticals = [r for r in rolls if r.is_critical]
 
         context.hits = len(successes)
-
+        # APPLYING ALL RULES:
+        for rule in context.rules:
+            rule.apply(context, "hit")
         # LOG GROUPS
         context.add_log(f"ROLLED: {[r.value for r in rolls]}")
         context.add_log(f"Successful Hits: {[r.value for r in successes]}")
